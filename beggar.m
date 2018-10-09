@@ -1,7 +1,8 @@
 close all
 clear
+
 %% 构造GPS数据
-load gps.mat;
+load gps2018-9-15.mat;
 gpsData.gpsWeek=gps{:,1};
 gpsData.gpsSecond=gps{:,2};
 gpsData.latitude=gps{:,3};
@@ -13,7 +14,7 @@ gpsData.sde=gps{:,'sde'};
 gpsData.sdu=gps{:,'sdu'};
 
 
-plot(gpsData.longitude,gpsData.latitude,'.');
+plot(gpsData.longitude(10:60),gpsData.latitude(10:60),'.');
 title('The field trajectory');
 xlabel('longitude(deg)');
 ylabel('latitude(deg)');
@@ -24,7 +25,7 @@ xlabel('gps second(s)');
 ylabel('std(m)');
 legend('North', 'East', 'Height');
 %% 构造INS数据
-load imu.mat;
+load imu2018-9-15.mat;
 [imuNum,~]=size(imu);
 toRmv=[];
 for i=1:imuNum
@@ -66,4 +67,15 @@ title('accY')
 subplot(3,1,3)
 plot(imuData.accZ)
 title('accZ')
+
+figure 
+subplot(3,1,1)
+plot(imuData.gX)
+title('gX')
+subplot(3,1,2)
+plot(imuData.gY)
+title('gY')
+subplot(3,1,3)
+plot(imuData.gZ)
+title('gZ')
 %%
