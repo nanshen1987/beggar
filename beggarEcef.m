@@ -119,26 +119,27 @@ nodeSol.Vy=[];
 nodeSol.Vz=[];
 nodeSol.type=[];%0 gps  2 INS+GPS
 nodeSol.gpsSecond=[];
-for epoch=1:gpsNum
+epoch4ins=1;
+for epoch4gps=1:gpsNum
     %
-    if epoch<gpsWinsize
-        sol.X=[sol.X,gpsData.X(epoch)];
-        sol.Y=[sol.X,gpsData.Y(epoch)];
-        sol.Z=[sol.X,gpsData.Z(epoch)];
-        sol.Vx=[sol.Vx,gpsData.Vx(epoch)];
-        sol.Vy=[sol.Vy,gpsData.Vy(epoch)];
-        sol.Vz=[sol.Vz,gpsData.Vz(epoch)];
+    if epoch4gps<gpsWinsize
+        sol.X=[sol.X,gpsData.X(epoch4gps)];
+        sol.Y=[sol.X,gpsData.Y(epoch4gps)];
+        sol.Z=[sol.X,gpsData.Z(epoch4gps)];
+        sol.Vx=[sol.Vx,gpsData.Vx(epoch4gps)];
+        sol.Vy=[sol.Vy,gpsData.Vy(epoch4gps)];
+        sol.Vz=[sol.Vz,gpsData.Vz(epoch4gps)];
         sol.type=[sol.type,0];
-        sol.gpsSecond=[sol.gpsSecond,gpsData.gpsSecond(epoch)];
+        sol.gpsSecond=[sol.gpsSecond,gpsData.gpsSecond(epoch4gps)];
         
-        nodeSol.X=[sol.X,gpsData.X(epoch)];
-        nodeSol.Y=[sol.X,gpsData.Y(epoch)];
-        nodeSol.Z=[sol.X,gpsData.Z(epoch)];
-        nodeSol.Vx=[sol.Vx,gpsData.Vx(epoch)];
-        nodeSol.Vy=[sol.Vy,gpsData.Vy(epoch)];
-        nodeSol.Vz=[sol.Vz,gpsData.Vz(epoch)];
+        nodeSol.X=[sol.X,gpsData.X(epoch4gps)];
+        nodeSol.Y=[sol.X,gpsData.Y(epoch4gps)];
+        nodeSol.Z=[sol.X,gpsData.Z(epoch4gps)];
+        nodeSol.Vx=[sol.Vx,gpsData.Vx(epoch4gps)];
+        nodeSol.Vy=[sol.Vy,gpsData.Vy(epoch4gps)];
+        nodeSol.Vz=[sol.Vz,gpsData.Vz(epoch4gps)];
         nodeSol.type=[sol.type,0];
-        nodeSol.gpsSecond=[sol.gpsSecond,gpsData.gpsSecond(epoch)];
+        nodeSol.gpsSecond=[sol.gpsSecond,gpsData.gpsSecond(epoch4gps)];
     else
         
     end
