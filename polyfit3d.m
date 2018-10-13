@@ -20,6 +20,6 @@ figure
 XY=B*p;
 
 %scatter3(XY(1:2:n*2),XY(2:2:n*2),Z,'+');
-plot3(XY(1:2:n*2),XY(2:2:n*2),Z,'+');
+plot3(XY(1:2:n*2),XY(2:2:n*2),Z,'r+');
 end
 
