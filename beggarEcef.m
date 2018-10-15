@@ -97,7 +97,7 @@ plot(imuData.gpsSecond,imuData.gZ);
 
 %% self allignment and filter
 
-gpsWinsize=8;
+gpsWinsize=10;
 insGpsRatio=2;
 minDistance=50;
 minInterval=3;
@@ -120,30 +120,74 @@ nodeSol.Vz=[];
 nodeSol.type=[];%0 gps  2 INS+GPS
 nodeSol.gpsSecond=[];
 epoch4ins=1;
+biases=[];
+distances=[];
+fixed=0;%记录系统当前固定状态
 for epoch4gps=1:gpsNum
     %
-    if epoch4gps<gpsWinsize
+    if epoch4gps<=gpsWinsize
         sol.X=[sol.X,gpsData.X(epoch4gps)];
-        sol.Y=[sol.X,gpsData.Y(epoch4gps)];
-        sol.Z=[sol.X,gpsData.Z(epoch4gps)];
+        sol.Y=[sol.Y,gpsData.Y(epoch4gps)];
+        sol.Z=[sol.Z,gpsData.Z(epoch4gps)];
         sol.Vx=[sol.Vx,gpsData.Vx(epoch4gps)];
         sol.Vy=[sol.Vy,gpsData.Vy(epoch4gps)];
         sol.Vz=[sol.Vz,gpsData.Vz(epoch4gps)];
         sol.type=[sol.type,0];
         sol.gpsSecond=[sol.gpsSecond,gpsData.gpsSecond(epoch4gps)];
         
-        nodeSol.X=[sol.X,gpsData.X(epoch4gps)];
-        nodeSol.Y=[sol.X,gpsData.Y(epoch4gps)];
-        nodeSol.Z=[sol.X,gpsData.Z(epoch4gps)];
-        nodeSol.Vx=[sol.Vx,gpsData.Vx(epoch4gps)];
-        nodeSol.Vy=[sol.Vy,gpsData.Vy(epoch4gps)];
-        nodeSol.Vz=[sol.Vz,gpsData.Vz(epoch4gps)];
-        nodeSol.type=[sol.type,0];
-        nodeSol.gpsSecond=[sol.gpsSecond,gpsData.gpsSecond(epoch4gps)];
+        nodeSol.X=[nodeSol.X,gpsData.X(epoch4gps)];
+        nodeSol.Y=[nodeSol.Y,gpsData.Y(epoch4gps)];
+        nodeSol.Z=[nodeSol.Z,gpsData.Z(epoch4gps)];
+        nodeSol.Vx=[nodeSol.Vx,gpsData.Vx(epoch4gps)];
+        nodeSol.Vy=[nodeSol.Vy,gpsData.Vy(epoch4gps)];
+        nodeSol.Vz=[nodeSol.Vz,gpsData.Vz(epoch4gps)];
+        nodeSol.type=[nodeSol.type,0];
+        nodeSol.gpsSecond=[nodeSol.gpsSecond,gpsData.gpsSecond(epoch4gps)];
+        if epoch4gps==gpsWinsize
+            [pass,bias,distance] = check4Allign(nodeSol,imuData,gpsWinsize,insGpsRatio,epoch4ins);
+            biases=[biases,bias];
+            distances=[distances,distance];      
+            fixed=pass          
+        end
     else
+        nodeSol.X=[nodeSol.X,gpsData.X(epoch4gps)];
+        nodeSol.Y=[nodeSol.Y,gpsData.Y(epoch4gps)];
+        nodeSol.Z=[nodeSol.Z,gpsData.Z(epoch4gps)];
+        nodeSol.Vx=[nodeSol.Vx,gpsData.Vx(epoch4gps)];
+        nodeSol.Vy=[nodeSol.Vy,gpsData.Vy(epoch4gps)];
+        nodeSol.Vz=[nodeSol.Vz,gpsData.Vz(epoch4gps)];
+        nodeSol.type=[nodeSol.type,0];
+        nodeSol.gpsSecond=[nodeSol.gpsSecond,gpsData.gpsSecond(epoch4gps)];
+        [pass,bias,distance] = check4Allign(nodeSol,imuData,gpsWinsize,insGpsRatio,epoch4ins);
+        %%
+        if pass==1 && fixed==1
+        %ins
+            
+        elseif pass==1 && fixed==0
+        %gps
+                
+            fixed=1;
+        elseif pass==0 && fixed==1
+         %gps ins   
+            fixed=0;        
+        end
+        biases=[biases,bias];
+        distances=[distances,distance];
         
     end
 end
-
+figure
+mean(biases)
+subplot(3,1,1);
+plot(biases,'r');
+title('fit bias')
+mean(distances)
+subplot(3,1,2);
+plot(distances,'g');
+title('chnage distance')
+subplot(3,1,3);
+mean(distances./biases)
+plot(distances./biases,'b')
+title('distances./biases')
 
 

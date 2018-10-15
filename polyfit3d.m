@@ -15,11 +15,11 @@ end
 error=1;
 p=(B'*B)\(B'*L);
 figure 
-%scatter3(X,Y,Z,'.');
 
-XY=B*p;
+procX=p(1)*Z+p(2);
+procY=p(3)*Z+p(4);
 
-%scatter3(XY(1:2:n*2),XY(2:2:n*2),Z,'+');
-plot3(XY(1:2:n*2),XY(2:2:n*2),Z,'r+');
+
+plot3(procX,procY,Z,'r+',X,Y,Z,'b-');
 end
 
