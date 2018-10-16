@@ -77,19 +77,28 @@ cbe=eyes(3);
 prT=imuData.gpsSecond(insEndIndex);
 prA=[imuData.accX(insEndIndex),imuData.accY(insEndIndex),imuData.accZ(insEndIndex)]';
 sumJ=zeros(3,1);
+sumV=zeros(3,1);
 sumM=zeros(3,3);
+sumT=zeros(3,1);
+%¹Û²â·½³Ì¾ØÕó
+B=zeros((insEndIndex-insEndIndex)*3,15);
 prP=ps;
 preV=v0;
 for i=insEndIndex:-1:insStartIndex
     deltaT=imuData.gpsSecond(insEndIndex)-prT;
     curA=[imuData.accX(i),imuData.accY(i),imuData.accZ(i)]';
-    curV=preV-cbe*(curA+prA)/2*deltaT;
-    curP=prP-(curV+preV)/2*deltaT;
+    curV=preV+cbe*(curA+prA)/2*deltaT;
+    curP=prP+(curV+preV)/2*deltaT;
     
-    sumJ=sumJ+(prA+curA)*deltaT;
+    
+    sumJ=sumJ+cbe/4*(curA+prA)*deltaT*deltaT+sumV*deltaT;
+    sumV=sumV+cbe/2*(curA+prA)*deltaT;
+    sumM=sumM+cbe/2*deltaT*deltaT+sumT*deltaT;
+    sumT=sumT+cbe*deltaT;
     
     prT=imuData.gpsSecond(insEndIndex);
     prP=curP;
+    prA=curA;
 end
 end
 
