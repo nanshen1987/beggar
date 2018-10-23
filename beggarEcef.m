@@ -1,5 +1,6 @@
 close all
 clear
+clc
 %% 构造GPS数据
 load gps2018-10-8.mat;
 gpsData.gpsWeek=gps{:,1};
@@ -97,9 +98,9 @@ plot(imuData.gpsSecond,imuData.gZ);
 
 %% self allignment and filter
 
-gpsWinsize=10;
+gpsWinsize=20;
 insGpsRatio=2;
-minDistance=50;
+minDistance=20;
 minInterval=3;
 %所有解
 sol.X=[];
