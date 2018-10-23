@@ -1,4 +1,4 @@
-function [pass,bias,distance] = check4Allign(nodeSol,imuData,gpsWinsize,insGpsRatio,epoch4ins)
+function [pass,bias,distance,cbe] = check4Allign(nodeSol,imuData,gpsWinsize,insGpsRatio,epoch4ins)
 %% check condition for allignment
 %   nodeSol gpsNode for check
 %   imuData ins data
@@ -6,8 +6,8 @@ function [pass,bias,distance] = check4Allign(nodeSol,imuData,gpsWinsize,insGpsRa
 %   insGpsRatio ratio  of gps and ins
 %   epoch4ins current epoch of ins
 
-limitBias=6;
-limitDistance=50;
+limitBias=10;
+limitDistance=15;
 limitR=2.8641;
 
 [~,nodeSolSize]=size(nodeSol.X);
@@ -46,6 +46,8 @@ if bias<limitBias && distance>limitDistance
     pass=1;
 else
     pass=0;
+    cbe=eye(3);
+    return;
 end
 %% cal b2e
 % cal ins start and end index
@@ -100,135 +102,143 @@ for i=nodeSolSize-gpsWinsize+1:nodeSolSize-1
     iter4Cbe=iter4Cbe+1;
 end
 Ccbe=B4Cbe'*B4Cbe\B4Cbe'*L4Cbe;
-Ccbe=reshape(Ccbe,3,3);
-cbe=(Ccbe+Ccbe')/2;
-% construct equation
-%近似值
-v0=[nodeSol.Vx(nodeSolSize),nodeSol.Vy(nodeSolSize),nodeSol.Vz(nodeSolSize)]';
-ps=[nodeSol.X(nodeSolSize),nodeSol.Y(nodeSolSize),nodeSol.Z(nodeSolSize)]';
+cbeM=zeros(3,3);
+cbeM(1,:)=Ccbe(1:3);
+cbeM(2,:)=Ccbe(4:6);
+cbeM(3,:)=Ccbe(7:9);
+cbe=cbeM;
 
-prT=imuData.gpsSecond(insEndIndex);
-prA=[imuData.accX(insEndIndex),imuData.accY(insEndIndex),imuData.accZ(insEndIndex)-9.8]';
-sumJ=zeros(3,1);
-sumV=zeros(3,1);
-sumM=zeros(3,3);
-sumT=zeros(3,1);
+
 %观测方程矩阵
-B=zeros((insEndIndex-insStartIndex),15);
+%2018.10.23变更，只求姿态，忽略初始位置和初始速度（不作为待估值求解）
+B=zeros((insEndIndex-insStartIndex),9);
 L=zeros((insEndIndex-insStartIndex),1);
-P=zeros(insEndIndex-insStartIndex,insEndIndex-insStartIndex);
-X0=[nodeSol.Vx(nodeSolSize),nodeSol.Vy(nodeSolSize),nodeSol.Vz(nodeSolSize)...
-    cbe(1,1),cbe(1,2),cbe(1,3),cbe(2,1),cbe(2,2),cbe(2,3),cbe(3,1),cbe(3,2),cbe(3,3),0,0,0]';
-prP=ps;
-preV=v0;
 iterIndex=1;
-sumDeltaT=0;
-approxP=[];
-approxV=[];
-Pi1s=[];
-Pi2s=[];
-Pi3s=[];
-Bp1s=[];
-Bp2s=[];
-Bp3s=[];
 for i=(insEndIndex-1):-1:insStartIndex
-    %time interval
-    deltaT=imuData.gpsSecond(i)-prT;
-    %total time eclpise
-    sumDeltaT=sumDeltaT+deltaT;
-    %curr accelerometer
-    curA=[imuData.accX(i),imuData.accY(i),imuData.accZ(i)-9.8]';
-    %curr velocity
-    curV=preV+cbe*(curA+prA)/2*deltaT;
-    %curr position
-    curP=prP+(curV+preV)/2*deltaT;
-    
-    approxP=[approxP;curP(1),curP(2),curP(3)];
-    approxV=[approxV;curV(1),curV(2),curV(3)];
-    
-    
-    sumJ=sumJ+cbe/4*(curA+prA)*deltaT*deltaT+sumV*deltaT;
-    sumV=sumV+cbe/2*(curA+prA)*deltaT;
-    sumM=sumM+cbe/2*deltaT*deltaT+sumT*deltaT;
-    sumT=sumT+cbe*deltaT;
-    
-    %
-    diffP=curP-avgXYZ';
-    Pi1=d(3)*diffP(2)-d(2)*diffP(3);
-    Pi2=-d(3)*diffP(1)+d(1)*diffP(3);
-    Pi3=d(2)*diffP(1)-d(1)*diffP(2);
-    Pi1s=[Pi1s,Pi1];
-    Pi2s=[Pi2s,Pi2];
-    Pi3s=[Pi3s,Pi3];
-    
-    Bp1=2*(d(2)*Pi3-d(3)*Pi2);
-    Bp2=2*(d(3)*Pi1-d(1)*Pi3);
-    Bp3=2*(-d(2)*Pi1+d(1)*Pi2);
-    Bp1s=[Bp1s,Bp1];
-    Bp2s=[Bp2s,Bp2];
-    Bp3s=[Bp3s,Bp3];
-    B(iterIndex,1)=Bp1*sumDeltaT;
-    B(iterIndex,2)=Bp2*sumDeltaT;
-    B(iterIndex,3)=Bp3*sumDeltaT;
-    B(iterIndex,4)=Bp1*sumJ(1);
-    B(iterIndex,5)=Bp1*sumJ(2);
-    B(iterIndex,6)=Bp1*sumJ(3);
-    B(iterIndex,7)=Bp2*sumJ(1);
-    B(iterIndex,8)=Bp2*sumJ(2);
-    B(iterIndex,9)=Bp2*sumJ(3);
-    B(iterIndex,10)=Bp3*sumJ(1);
-    B(iterIndex,11)=Bp3*sumJ(2);
-    B(iterIndex,12)=Bp3*sumJ(3);
-    B(iterIndex,13)=Bp1*sumM(1,1)+Bp2*sumM(2,1)+Bp3*sumM(3,1);
-    B(iterIndex,14)=Bp1*sumM(1,2)+Bp2*sumM(2,2)+Bp3*sumM(3,2);
-    B(iterIndex,15)=Bp1*sumM(1,3)+Bp2*sumM(2,3)+Bp3*sumM(3,3);
-    L(iterIndex)=Pi1*Pi1+Pi2*Pi2+Pi3*Pi3;
-    
-%     B(iterIndex*3+1,1)=deltaT;
-%     B(iterIndex*3+1,4)=sumJ(1);
-%     B(iterIndex*3+1,5)=sumJ(2);
-%     B(iterIndex*3+1,6)=sumJ(3);
-%     B(iterIndex*3+1,13)=sumM(1,1);
-%     B(iterIndex*3+1,14)=sumM(1,2);
-%     B(iterIndex*3+1,15)=sumM(1,3);
-%     B(iterIndex*3+1,:)=*B(iterIndex*3+1,:);
-%     
-%     B(iterIndex*3+2,2)=deltaT;
-%     B(iterIndex*3+2,7)=sumJ(1);
-%     B(iterIndex*3+2,8)=sumJ(2);
-%     B(iterIndex*3+2,9)=sumJ(3);
-%     B(iterIndex*3+2,13)=sumM(2,1);
-%     B(iterIndex*3+2,14)=sumM(2,2);
-%     B(iterIndex*3+2,15)=sumM(2,3);
-%     B(iterIndex*3+2,:)=(d(3)*Pi1-d(1)*Pi3)*B(iterIndex*3+2,:);
-% 
-%     
-% 
-%     B(iterIndex*3+3,3)=deltaT;
-%     B(iterIndex*3+3,10)=sumJ(1);
-%     B(iterIndex*3+3,11)=sumJ(2);
-%     B(iterIndex*3+3,12)=sumJ(3);
-%     B(iterIndex*3+3,13)=sumM(3,1);
-%     B(iterIndex*3+3,14)=sumM(3,2);
-%     B(iterIndex*3+3,15)=sumM(3,3);
-%     B(iterIndex*3+3,:)=(-d(2)*Pi1+d(1)*Pi2)*B(iterIndex*3+3,:);
-    
-     P(iterIndex,iterIndex)=exp(-iterIndex);
-
-    prT=imuData.gpsSecond(i);
-    prP=curP;
-    prA=curA;
-    preV=curV;
+    %找出离该点最近的GPS点
+    insSec=imuData.gpsSecond(i);
+    deltaInsNode=1000000;
+    matchNodeIndex=0;
+    matchNodeSec=0;
+    for j=nodeSolSize-gpsWinsize+1:nodeSolSize
+        nodeSec=nodeSol.gpsSecond(j);
+        if abs(nodeSec-insSec)<deltaInsNode
+            deltaInsNode=abs(nodeSec-insSec);
+            matchNodeIndex=j;
+            matchNodeSec=nodeSec;
+        end
+    end
+    %估计该点坐标
+    %判断GPS点靠前还是靠后
+    if matchNodeSec>=insSec
+        i_end=i;
+        for k=i:insEndIndex
+            if imuData.gpsSecond(k)<=matchNodeSec
+                i_end=k;
+            end
+        end
+        p0x=nodeSol.X(matchNodeIndex);
+        p0y=nodeSol.Y(matchNodeIndex);
+        p0z=nodeSol.Z(matchNodeIndex);
+        v0x=nodeSol.Vx(matchNodeIndex);
+        v0y=nodeSol.Vy(matchNodeIndex);
+        v0z=nodeSol.Vz(matchNodeIndex);
+        preT=matchNodeSec;
+        preP=[p0x p0y p0z]';
+        preV=[v0x v0y v0z]';
+        preA=[imuData.accX(i_end) imuData.accY(i_end) imuData.accZ(i_end)]';
+        sumJ=zeros(3,1);
+        sumV=zeros(3,1);
+        for k=i_end:i
+            deltaT=imuData.gpsSecond(k)-preT;
+            curA=[imuData.accX(k) imuData.accY(k) imuData.accZ(k)]';
+            curV=preV+cbe*(preA+curA)/2*deltaT;
+            curP=preP+(preV+curV)/2.0*deltaT;
+            sumJ=sumJ+cbe/4*(curA+preA)*deltaT*deltaT+sumV*deltaT;
+            sumV=sumV+cbe/2*(curA+preA)*deltaT;
+            
+            preT=imuData.gpsSecond(k);
+            preP=curP;
+            preV=curV;
+            preA=curA;
+        end
+        
+        diffP=preP-avgXYZ';
+        Pi1=d(3)*diffP(2)-d(2)*diffP(3);
+        Pi2=-d(3)*diffP(1)+d(1)*diffP(3);
+        Pi3=d(2)*diffP(1)-d(1)*diffP(2);
+        Bp1=2*(d(2)*Pi3-d(3)*Pi2);
+        Bp2=2*(d(3)*Pi1-d(1)*Pi3);
+        Bp3=2*(-d(2)*Pi1+d(1)*Pi2);
+        
+        B(iterIndex,1)=Bp1*sumJ(1);
+        B(iterIndex,2)=Bp1*sumJ(2);
+        B(iterIndex,3)=Bp1*sumJ(3);
+        B(iterIndex,4)=Bp2*sumJ(1);
+        B(iterIndex,5)=Bp2*sumJ(2);
+        B(iterIndex,6)=Bp2*sumJ(3);
+        B(iterIndex,7)=Bp3*sumJ(1);
+        B(iterIndex,8)=Bp3*sumJ(2);
+        B(iterIndex,9)=Bp3*sumJ(3);
+        L(iterIndex)=Pi1*Pi1+Pi2*Pi2+Pi3*Pi3;
+    else
+         i_start=i;
+        for k=i:-1:insStartIndex
+            if imuData.gpsSecond(k)>matchNodeSec
+                i_start=k;
+            end
+        end
+        p0x=nodeSol.X(matchNodeIndex);
+        p0y=nodeSol.Y(matchNodeIndex);
+        p0z=nodeSol.Z(matchNodeIndex);
+        v0x=nodeSol.Vx(matchNodeIndex);
+        v0y=nodeSol.Vy(matchNodeIndex);
+        v0z=nodeSol.Vz(matchNodeIndex);
+        preT=matchNodeSec;
+        preP=[p0x p0y p0z]';
+        preV=[v0x v0y v0z]';
+        preA=[imuData.accX(i_start) imuData.accY(i_start) imuData.accZ(i_start)]';
+        sumJ=zeros(3,1);
+        sumV=zeros(3,1);
+        for k=i_start:i
+            deltaT=imuData.gpsSecond(k)-preT;
+            curA=[imuData.accX(k) imuData.accY(k) imuData.accZ(k)]';
+            curV=preV+cbe*(preA+curA)/2*deltaT;
+            curP=preP+(preV+curV)/2.0*deltaT;
+            sumJ=sumJ+cbe/4*(curA+preA)*deltaT*deltaT+sumV*deltaT;
+            sumV=sumV+cbe/2*(curA+preA)*deltaT;
+            
+            preT=imuData.gpsSecond(k);
+            preP=curP;
+            preV=curV;
+            preA=curA;
+        end
+        
+        diffP=preP-avgXYZ';
+        Pi1=d(3)*diffP(2)-d(2)*diffP(3);
+        Pi2=-d(3)*diffP(1)+d(1)*diffP(3);
+        Pi3=d(2)*diffP(1)-d(1)*diffP(2);
+        Bp1=2*(d(2)*Pi3-d(3)*Pi2);
+        Bp2=2*(d(3)*Pi1-d(1)*Pi3);
+        Bp3=2*(-d(2)*Pi1+d(1)*Pi2);
+        
+        B(iterIndex,1)=Bp1*sumJ(1);
+        B(iterIndex,2)=Bp1*sumJ(2);
+        B(iterIndex,3)=Bp1*sumJ(3);
+        B(iterIndex,4)=Bp2*sumJ(1);
+        B(iterIndex,5)=Bp2*sumJ(2);
+        B(iterIndex,6)=Bp2*sumJ(3);
+        B(iterIndex,7)=Bp3*sumJ(1);
+        B(iterIndex,8)=Bp3*sumJ(2);
+        B(iterIndex,9)=Bp3*sumJ(3);
+        L(iterIndex)=Pi1*Pi1+Pi2*Pi2+Pi3*Pi3;
+    end
     iterIndex=iterIndex+1;
 end
-figure
-plot3(approxP(:,1),approxP(:,2),approxP(:,3))
-figure
-plot(L)
- L=(B*X0-L);                          
-X=(B'*P*B)\B'*P*L;
-figure
-plot(B)
+% figure
+% plot(B)
+% X=(B'*B)\B'*L;
+% cbe=cbe+reshape(X,3,3)';
 end
 end
 
